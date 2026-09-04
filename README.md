@@ -27,7 +27,7 @@ Pre-alpha.
 | `balance-board-protocol` | MPL-2.0 | Pure parsing, calibration, center-of-gravity math, smoothing filter. No I/O, zero deps, runs on any machine without a board. |
 | `balance-board-io` | MPL-2.0 | HID glue via `hidapi`. Reads bytes off the wire, hands them to the protocol crate. Cross-platform. |
 | `balance-board-bridge` | GPL-3.0-or-later | The end-user binary. vJoy output, tare + smoothing, calibration cache. |
-| `balance-board-pair` | GPL-3.0-or-later | Windows-only auto-pair tool. Computes the Wii's special PIN (BD_ADDR reversed) so you don't have to fight the Bluetooth wizard. |
+| `balance-board-pair` | GPL-3.0-or-later | Windows-only auto-pair tool. Computes the Wii SYNC-bonding PIN (host BD_ADDR reversed) and drives the legacy Bluetooth pairing flow. |
 
 The split licensing is deliberate: the reusable crates use file-level copyleft
 (MPL-2.0) so anyone can pull them into their own projects; the bridge binary
@@ -48,7 +48,7 @@ cargo run --release -p balance-board-bridge -- --help              # see all fla
 ### Prerequisites
 
 1. **Rust toolchain** — `winget install Rustlang.Rustup`, or grab `rustup-init.exe` from <https://rustup.rs>.
-2. **Pair the Balance Board.** Easiest path: press SYNC inside the battery cover, then run `cargo run --release -p balance-board-pair`. That tool scans for `Nintendo RVL-WBC-01`, computes the special Wii PIN (the board's MAC address as raw bytes), authenticates, and enables the HID service — none of which the standard Windows Bluetooth wizard does correctly. Run with `--scan` first if you want to verify the board is in range without committing to pairing, or `--forget` to unpair if state gets weird.
+2. **Pair the Balance Board.** Easiest path: press SYNC inside the battery cover, then run `cargo run --release -p balance-board-pair`. That tool scans for `Nintendo RVL-WBC-01`, computes the special SYNC-bonding PIN (the PC Bluetooth radio MAC in reversed byte order), runs the legacy Bluetooth pairing flow, and enables the HID service — none of which the standard Windows Bluetooth wizard does correctly. Run with `--scan` first if you want to verify the board is in range without committing to pairing, or `--forget` to unpair if state gets weird.
 3. **Install vJoy** for the bridge binary: <https://github.com/jshafer817/vJoy/releases>. Run **Configure vJoy** afterwards, ensure device #1 is enabled, and check at least axes X, Y, Z, Rx, Ry, Rz. (The smoke-test example does *not* need vJoy.)
 4. **Steam Input mapping** — launch a game with controller support, open Steam's controller settings, and bind vJoy's X/Y to the in-game stick of your choice. For Superflight: vJoy X → right-stick X, vJoy Y → right-stick Y, plus a small radial deadzone.
 
