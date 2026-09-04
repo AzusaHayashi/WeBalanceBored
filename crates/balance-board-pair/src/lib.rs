@@ -45,5 +45,5 @@ mod bluetooth;
 
 #[cfg(windows)]
 pub use bluetooth::{
-    forget_all_balance_boards, pair_first, scan, DeviceState, PairResult, WiiDevice,
+    forget_all_balance_boards, install_only, pair_first, scan, DeviceState, PairResult, WiiDevice,
 };

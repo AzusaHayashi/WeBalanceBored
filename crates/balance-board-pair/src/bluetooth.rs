@@ -200,6 +200,48 @@ pub fn pair_first(
     ))
 }
 
+/// WiiFitToVRC-style fallback: discover the board in SYNC mode, then ONLY
+/// enable its HID service. No legacy PIN exchange happens, so this can
+/// succeed even when the board still holds a stale link key that makes
+/// [`pair_first`] hang with a BTHUSB/16 mutual-auth failure. The resulting
+/// profile is usually `authenticated = false`, so expect to press SYNC
+/// again next session (this is the "unauthenticated install" trade-off).
+pub fn install_only(timeout: Duration, max_rounds: u32) -> io::Result<PairResult> {
+    for round in 1..=max_rounds {
+        eprintln!(
+            "[install-only] discovery round {round}/{max_rounds}: scanning {:.0}s — press the red SYNC button on the board now if you have not yet.",
+            timeout.as_secs_f32()
+        );
+        let devices = scan(timeout)?;
+        if let Some(board) = devices.into_iter().find(WiiDevice::is_balance_board) {
+            let already = board.authenticated;
+            let radio = LocalRadio::open()?;
+            let info = info_for_address(board.address);
+            if !already {
+                eprintln!("[install-only] enabling HID service WITHOUT a PIN exchange (WiiFitToVRC flow)...");
+            } else {
+                eprintln!("[install-only] board already authenticated; enabling HID service.");
+            }
+            enable_hid_service(&radio, &info)?;
+            let post = poll_device_state(&radio, board.address, 12, Duration::from_millis(250));
+            eprintln!(
+                "[install-only] post-pair Windows state: authenticated={} remembered={} connected={}",
+                post.authenticated, post.remembered, post.connected
+            );
+            return Ok(PairResult {
+                address: board.address,
+                name: board.name,
+                already_paired: already,
+                post,
+            });
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        format!("No Balance Board found after {max_rounds} discovery rounds in install-only mode."),
+    ))
+}
+
 /// Pair one already-discovered board using the BBC/32feet-equivalent flow.
 fn pair_one(board: &WiiDevice, encoding: PinEncoding) -> io::Result<PairResult> {
     let radio = LocalRadio::open()?;

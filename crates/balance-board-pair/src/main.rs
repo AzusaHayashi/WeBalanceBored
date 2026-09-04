@@ -31,7 +31,7 @@ Usage: balance-board-pair [--scan | --forget | --pin-mode <raw|bbc> | --help]
                         Ex callback path (UTF-8 of a char string of the
                         reversed host-MAC bytes). Use for A/B testing only.
 
-  --remove-stale  Before pairing, remove existing Windows records for all
+  --install-only  WiiFitToVRC-style: enable the HID service on a SYNC-discovered\n                board with NO PIN exchange. Use when the stale-key deadlock\n                makes normal pairing hang (BTHUSB/16). Profile will likely be\n                authenticated=false (SYNC needed again next session).\n\n  --remove-stale  Before pairing, remove existing Windows records for all
                 remembered Balance Boards (like BBC/WiiFitToVRC do). Only
                 needed when a stale, inconsistent record blocks re-pairing;
                 destructive to the Windows-side pairing record.
@@ -66,7 +66,7 @@ fn main() {
 #[cfg(windows)]
 fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     use balance_board_pair::pin::format_bd_addr;
-    use balance_board_pair::{forget_all_balance_boards, pair_first, scan};
+    use balance_board_pair::{forget_all_balance_boards, install_only, pair_first, scan};
 
     let mut encoding = PinEncoding::Raw;
     let mut remove_stale = false;
@@ -118,6 +118,23 @@ fn run(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     if positional.iter().any(|a| a == "--forget") {
         let n = forget_all_balance_boards()?;
         eprintln!("Removed {n} Balance Board(s).");
+        return Ok(());
+    }
+
+    if positional.iter().any(|a| a == "--install-only") {
+        eprintln!(
+            "Install-only mode: no PIN exchange. Press the red SYNC button when a\n\
+             discovery round prints; HID service is enabled as soon as the board appears."
+        );
+        let result = install_only(Duration::from_secs(5), 12)?;
+        eprintln!(
+            "{name} ({addr}) install-only finished. Post state: authenticated={authenticated} remembered={remembered} connected={connected}",
+            name = result.name,
+            addr = format_bd_addr(result.address),
+            authenticated = result.post.authenticated,
+            remembered = result.post.remembered,
+            connected = result.post.connected
+        );
         return Ok(());
     }
 
