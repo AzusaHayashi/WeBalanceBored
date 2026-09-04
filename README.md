@@ -115,6 +115,14 @@ Practical takeaways:
 - If you hit the deadlock, `--install-only` restores per-session usability
   without needing to fight the key.
 
+Recovery that works (verified 2026-09-05): after the deadlock above, use the
+Windows Settings wizard - Settings -> Bluetooth & devices -> Add device ->
+Bluetooth - with the board in SYNC mode. It successfully overwrote the
+board's stale key and restored a genuine `authenticated = true` bond, which
+the bthprops/bthserv APIs used by this crate and by BBC could not do. Back up
+the key immediately afterwards (see `bond-backup/` in the launcher folder) so
+a future sleep-induced deletion can be undone with `restore.cmd`.
+
 ### When to use `balance-board-pair`
 
 - First setup, or any time the board will not reconnect and pressing SYNC
