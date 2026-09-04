@@ -89,6 +89,32 @@ Windows bond goes stale.
   reconnect without SYNC, because the bond lives in the Windows registry and
   the board's own flash.
 
+### Known limitation: Windows sleep can orphan the board-side key
+
+A successful authenticated pairing stores one link key on the PC and one on
+the board. On this machine a system sleep/resume (Modern Standby) deleted the
+Windows-side record **and** link key (BTHUSB event 10), while the board kept
+its own copy. Once that asymmetry exists, Windows can no longer re-establish
+an authenticated bond by re-pairing:
+
+- Every legacy-PIN attempt ends in `BTHUSB` event 16 ("mutual authentication
+  failed") or hangs at the auth callback: the board answers with its stored
+  key instead of entering a fresh PIN pairing.
+- Deleting the Windows device (Settings or `--remove-stale`) does not help -
+  WiiBrew documents no way to clear the host addresses a board stores.
+- The unauthenticated fallback still works: `balance-board-pair --install-only`
+  (same idea as BBC's own flow) installs the HID service without a PIN
+  exchange, so the board is usable per session - but `authenticated = false`,
+  so SYNC is needed again next session.
+
+Practical takeaways:
+- Treat the authenticated no-SYNC bond as fragile across Windows sleep.
+  Mitigate by disabling Bluetooth radio power saving and/or backing up the
+  `BTHPORT\Parameters\Keys` value (SYSTEM-only) right after an authenticated
+  pairing so it can be restored after a sleep-induced deletion.
+- If you hit the deadlock, `--install-only` restores per-session usability
+  without needing to fight the key.
+
 ### When to use `balance-board-pair`
 
 - First setup, or any time the board will not reconnect and pressing SYNC
