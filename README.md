@@ -63,6 +63,52 @@ cargo run --release -p balance-board-bridge -- --help              # see all fla
 Inspired by, and rewritten from scratch over,
 [lshachar/WiiBalanceWalker](https://github.com/lshachar/WiiBalanceWalker).
 
+## Component roles & day-to-day operation
+
+This project is an *open-source alternative to* the Balance Board Controller
+(BBC) app. You do **not** need it for day-to-day use if BBC already works for
+you; it exists so a clean, correct pairing can be re-created whenever the
+Windows bond goes stale.
+
+| Piece | Role | Notes |
+| --- | --- | --- |
+| Wii Balance Board (hardware) | The device. | Only pairs via the red SYNC button (Bluetooth bonding). |
+| Windows pairing record + link key | What lets the board reconnect without SYNC. | Stored in the registry; survives board power cycles, PC reboots and Bluetooth radio toggles. Do not "Remove device" unless you intend to re-pair. |
+| BBC (or your preferred app) | Connect + read the board every day. | Not part of this repo. |
+| `balance-board-pair` | **Repair tool**: (re)create a clean authenticated bond. | Only needed when you have to press SYNC again. |
+| `balance-board-bridge` | This repo's BBC replacement (HID read + vJoy). | Implemented, not yet exercised on this machine. |
+
+### Verified on Windows 11 (RVL-WBC-01, adapter 60:E3:2B:58:81:6B)
+
+- Windows and BBC both report `authenticated = true` after pairing with the
+  flow below (earlier, BBC-only pairings stayed at `authenticated = false`).
+- The board reconnects **without SYNC** after: short power cycles (~6 s), a
+  ~2 minute power-off, and a full Bluetooth radio toggle (radio killed while
+  still connected).
+- Expected (not yet re-tested here): PC reboot and overnight idle should also
+  reconnect without SYNC, because the bond lives in the Windows registry and
+  the board's own flash.
+
+### When to use `balance-board-pair`
+
+- First setup, or any time the board will not reconnect and pressing SYNC
+  alone does not help (classic stale-record symptom).
+- **Default (safe): no flags.** It retries discovery for ~30 s; press the
+  board's red SYNC button when a "discovery round" line prints.
+- `--remove-stale`: deletes existing Windows records for Nintendo boards
+  before pairing (like BBC/WiiFitToVRC do). Only for when a stale record
+  blocks re-pairing.
+- `--pin-mode raw` (default) sends the host-MAC reversed bytes per WiiBrew;
+  `--pin-mode bbc` reproduces the byte string 32feet sends on its Ex callback
+  path (kept for A/B testing only).
+
+> Correction vs. earlier upstream text: the pairing PIN is **not** the
+> board's MAC reversed. That rule is for the Wiimote's 1+2 "guest" mode; a
+> SYNC-only Balance Board uses the **host** radio MAC reversed (WiiBrew +
+> WiiBalanceWalker). This crate's pairing flow now mirrors the BBC/32feet
+> sequence: host-MAC PIN answered through a registered
+> `BluetoothRegisterForAuthenticationEx` callback, initiated with the legacy
+> `BluetoothAuthenticateDevice` API, then the HID service is enabled.
 ## License
 
 This repository ships under two licenses depending on the crate.
